@@ -1,0 +1,129 @@
+####### IC1 #########
+# 1  vcc    # 8  GND
+# 2  close  # 7 open/close
+# 3  led  	# 6 1/2
+# 4  		    # 5 RF
+
+####### X1 #########
+# 1  VCC    
+# 2  GND
+# 3  IC1
+# 4  close  
+# 5 open/close
+
+####### REV #########
+# 1 ANT
+# 2 GND
+#
+# 3 GND
+# 4 DATA
+# 5 VCC
+
+substitutions:
+  name: "gates-lite"
+  device_description: Home Gate PK300DC
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+esp32_ble_tracker:
+
+bluetooth_proxy:
+  active: true
+
+#-------------------------------------------
+# PACKAGES
+#-------------------------------------------
+packages:
+  wifi: !include packages/wifi.yaml
+  device_base: !include packages/device_base.yaml
+  web: !include included/web.yaml
+  time: !include included/time.yaml
+    
+#-------------------------------------------
+# OUTPUT
+#-------------------------------------------
+output:
+  - platform: gpio
+    pin: GPIO1
+    id: output1
+  - platform: gpio
+    pin: GPIO2
+    id: output2
+  - platform: gpio
+    pin: GPIO3
+    id: output3
+
+#-------------------------------------------
+# BUTTON
+#-------------------------------------------
+button:
+  - platform: output
+    name: "close"
+    output: output1
+    duration: 500ms
+    id: b_close
+  - platform: output
+    name: "open/close"
+    output: output2
+    duration: 500ms
+    id: b_open_close
+  - platform: output
+    name: "open 1/2"
+    output: output3
+    id: b_open_1_2
+    duration: 500ms
+
+#-------------------------------------------
+# REMOTE RECEIVER
+#-------------------------------------------
+remote_receiver:
+  pin: GPIO7
+  dump: all
+ # dump:
+ #   - rc_switch
+  # Settings to optimize recognition of RF devices
+  tolerance: 50%
+  filter: 250us
+  idle: 4ms
+
+
+#-------------------------------------------
+# BINARY SENSOR
+#-------------------------------------------
+binary_sensor:
+  - platform: ble_presence
+    mac_address: 01:00:00:00:00:00
+    name: "Presence car kv1"
+    on_press:
+      then:
+        - button.press: b_open_close
+    on_release:
+      then:
+        - button.press: b_close
+
+  - platform: remote_receiver
+    name: "RF close"
+    rc_switch_raw:
+      protocol:  1 #tweak depending on the protocol you want to receiver
+      code: "xxxxxxxxxxxxxxxxxxxxxxxx" #x=wildcard, adjust length
+    on_press:
+      then:
+        - button.press: b_close
+  - platform: remote_receiver
+    name: "RF open/close"
+    rc_switch_raw:
+      protocol:  1 #tweak depending on the protocol you want to receiver
+      code: "xxxxxxxxxxxxxxxxxxxxxxxx" #x=wildcard, adjust length
+    on_press:
+      then:
+        - button.press: b_open_close
+  - platform: remote_receiver
+    name: "RF open 1/2"
+    rc_switch_raw:
+      protocol:  1 #tweak depending on the protocol you want to receiver
+      code: "xxxxxxxxxxxxxxxxxxxxxxxx" #x=wildcard, adjust length
+    on_press:
+      then:
+        - button.press: b_open_1_2
