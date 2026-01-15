@@ -1,4 +1,5 @@
 # esphome-homegate
 
-![board](/images/homegate.jpg)
-![board](/images/homegate_0.jpg)
+![homegate PK300DC](/images/homegate.jpg)
+![board](/images/homegate_board.jpg)
+![board](/images/homegate_board_0.jpg)
