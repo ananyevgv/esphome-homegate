@@ -1,8 +1,7 @@
 ###########################################################
 ##                    ESP32-S3 Tiny                      ##
-
 ##  |  11  | |  10  | |   9  | |   8  | |   7 |          ##
-##  | RF   | |status| |      | |MOSF2 | |MOSF1|          ##
+##  | RF   | |status| |      | |MOSF1 | |MOSF2|          ##
 ##  |12| 18 o/c|39|       |#|     |38|     |6 | 11 NL2003##
 ##  |13| 19 cl |40|       |#|     |37|     |5 | 10 NL2003##
 ##  |14| 20ir  |41|       |#|     |36|     |4 | 9        ##
@@ -29,8 +28,9 @@
 # 12 dip 5  MOSFET2         # 17 resistor dip 2
 # 13 dip 4  MOSFET1         # 16 resistor dip 3
 # 14 Q11(kol)  		          # 15 resistor rele&
+##################################################################
 
-
+########## UNL2003 ##############
 # 1 10pic   # 16 Light
 # 2 11pic   # 15 diod q11 pic14
 # 3 10pic   # 14 
@@ -39,12 +39,14 @@
 # 6 7pic    # 11 Motor 1, 2
 # 7 6pic    # 10 lock
 # 8 GND     # 9  VCC
+################################
 
-####### IC1 #########
+####### IC1 ####################
 # 1  vcc    # 8  GND
 # 2  close  # 7 open/close
 # 3  led  	# 6 1/2
 # 4  AN1    # 5 RF
+###############################
 
 ####### X1 #########
 # 1  VCC    
@@ -52,6 +54,7 @@
 # 3  IC1
 # 4  close  
 # 5 open/close
+####################
 
 ####### REV #########
 # 1 ANT
@@ -60,8 +63,9 @@
 # 3 GND
 # 4 DATA
 # 5 VCC
+####################
 
-### DIP переключатель
+### DIP переключатель ####################################################################
 # 1 Включено Привод 2 начинает закрывать створку через 5 секунд после
 # 2 Включено Привод 1 и Привод 2 проводят 0.5 секунд на закрытие перед открытием ворот
 # 3 Режим на Одну / Две створки
@@ -71,6 +75,7 @@
 # 5 ON 6 OFF автоматическое закрытие через 10 сек
 # 5 OFF 6 ON автоматическое закрытие через 5 сек
 # 5 OFF 6 OFF Функция автоматического закрытия отключена
+##########################################################################################
 
 substitutions:
   name: "gates"
@@ -176,7 +181,10 @@ cover:
       - switch.turn_off: motor12
       - switch.turn_off: rotate
     optimistic: true
-
+    on_open:
+      - light.turn_on: gate_lamp
+    on_closed:
+      - light.turn_off: gate_lamp
 #-------------------------------------------
 # SWITCH
 #-------------------------------------------
@@ -184,14 +192,14 @@ switch:
   - platform: gpio
     pin: 3
     id: rotate
-    name: Gate rotate
+    #name: Gate rotate
     icon: mdi:gate-open
 
 
   - platform: gpio
     pin: 2
     id: motor12
-    name: Gate open/close
+    #name: Gate open/close
     icon: mdi:gate
 
   - platform: template
@@ -238,7 +246,7 @@ binary_sensor:
     on_press:
       then:
         - cover.toggle: yar_gate
-     #   - cover.open: yar_gate
+
   - platform: gpio
     pin:
       number: GPIO13
@@ -385,13 +393,13 @@ light:
     icon: mdi:led-strip-variant
 
   - platform: binary
-    name: "gate 1"
+   # name: "gate 1"
     id: gate_1
     output: MOSFET1
     icon: mdi:boom-gate-up-outline
 
   - platform: binary  
-    name: "gate 2"
+  #  name: "gate 2"
     id: gate_2
     output: MOSFET2
     icon: mdi:boom-gate-up-outline
