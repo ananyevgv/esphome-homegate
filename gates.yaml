@@ -1,0 +1,468 @@
+###########################################################
+##                    ESP32-S3 Tiny                      ##
+
+##  |  11  | |  10  | |   9  | |   8  | |   7 |          ##
+##  | 15   | |      | |      | |  RF  | | 14  |          ##
+##  |12| 18 o/c|39|       |#|     |38|     |6 | 11 NL2003##
+##  |13| 19 cl |40|       |#|     |37|     |5 | 10 NL2003##
+##  |14| 20ir  |41|       |#|     |36|     |4 | 9        ##
+##  |15| 21sens|42|       |#|     |35|     |3 | 8 NL2003 ##
+##  |16| 22 1/2|45|       |#|     |34|     |2 | 7 NL2003 ##
+##  |17| 23    |47|       |#|     |33|     |1 | 6 NL2003 ##
+##  |18| 24 sq |48|       |#|     |21|     |3v| 5 n/a    ##
+##  |44| 25 sq            |#|              |GN| 4 GND    ## 
+##  |43| n/a              |#|              |5V| 2 VCC    ##
+###########################################################
+
+########### U4 ##################################################
+# 1 обвязка      	          # 28 обвязка 
+# 2 VCC   		              # 27 кварц
+# 3       		              # 26 кварц
+# 4 GND   		              # 25 датчик тока m1?
+# 5       		              # 24 датчик тока m2?
+# 6 NL2003 7 lock q10 rel   # 23 n/a
+# 7 NL2003 6	moto2 q10 rel # 22 button 1/2 rf433 rf433 v3
+# 8 NL2003 5	rota q10 rel  # 21 sensor
+# 9 dip3		                # 20 ir
+# 10 NL2003 1,3,4	 light    # 19 button close rf433 v1
+# 11 NL2003 2 dip 6         # 18 button test button open/close rf433 v2 транзистор
+# 12 dip 5  MOSFET2         # 17 resistor dip 2
+# 13 dip 4  MOSFET1         # 16 resistor dip 3
+# 14 Q11(kol)  		          # 15 resistor rele&
+
+
+# 1 10pic   # 16 Light
+# 2 11pic   # 15 diod q11 pic14
+# 3 10pic   # 14 
+# 4 10pic   # 13 light
+# 5 8pic    # 12 Rotation 
+# 6 7pic    # 11 Motor 1, 2
+# 7 6pic    # 10 lock
+# 8 GND     # 9  VCC
+
+####### IC1 #########
+# 1  vcc    # 8  GND
+# 2  close  # 7 open/close
+# 3  led  	# 6 1/2
+# 4  AN1    # 5 RF
+
+####### X1 #########
+# 1  VCC    
+# 2  GND
+# 3  IC1
+# 4  close  
+# 5 open/close
+
+####### REV #########
+# 1 ANT
+# 2 GND
+#
+# 3 GND
+# 4 DATA
+# 5 VCC
+
+### DIP переключатель
+# 1 Включено Привод 2 начинает закрывать створку через 5 секунд после
+# 2 Включено Привод 1 и Привод 2 проводят 0.5 секунд на закрытие перед открытием ворот
+# 3 Режим на Одну / Две створки
+# 4 /
+# 5 6 Функция автоматического закрытия
+# 5 ON 6 ON автоматическое закрытие через 60 сек
+# 5 ON 6 OFF автоматическое закрытие через 10 сек
+# 5 OFF 6 ON автоматическое закрытие через 5 сек
+# 5 OFF 6 OFF Функция автоматического закрытия отключена
+
+substitutions:
+  name: "gates"
+  device_description: Home Gate PK300DC
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  framework:
+    type: esp-idf
+
+#-------------------------------------------
+# PSRAM
+#-------------------------------------------
+#psram:
+#  mode: quad
+#  speed: 80MHz
+
+
+#-------------------------------------------
+# PACKAGES
+#-------------------------------------------
+packages:
+  wifi: !include packages/wifi.yaml
+  device_base: !include packages/device_base.yaml
+  web: !include included/web.yaml
+  time: !include included/time.yaml
+  
+#-------------------------------------------
+# BLE
+#-------------------------------------------
+esp32_ble_tracker:
+
+bluetooth_proxy:
+  active: true
+
+#-------------------------------------------
+# GLOBALS
+#-------------------------------------------
+globals:
+  - id: gate_global
+    type: bool
+    restore_value: yes
+
+  - id: gate_1_2
+    type: bool
+    initial_value: 'true'
+    restore_value: no
+#-------------------------------------------
+# COVER
+#-------------------------------------------
+cover:
+  - platform: template
+    name: "Gate"
+    id: yar_gate
+    icon: mdi:gate
+    assumed_state: true
+    lambda: |-
+      if (id(gate_global)) {
+       return COVER_OPEN;
+      } else {
+        return COVER_CLOSED;
+      }
+    open_action:
+      - switch.turn_on: motor12
+      - light.turn_on: gate_1
+      - delay: !lambda 'return id(timeout_open).state;'
+      - if:
+          condition:
+            lambda: |-
+              return id(gate_1_2);
+          then:
+            - light.turn_on: gate_2
+      - delay: 5s
+      - switch.turn_off: motor12
+      - globals.set:
+          id: gate_global
+          value: 'true'
+      - globals.set:
+          id: gate_1_2
+          value: 'true'
+      - if:
+          condition:
+            switch.is_on: close_auto
+          then:
+            - delay: !lambda 'return id(timeout_auto_close).state;'
+            - cover.close: yar_gate
+    close_action:
+      - switch.turn_on: rotate    
+      - switch.turn_on: motor12
+      - light.turn_on: gate_2
+      - delay: !lambda 'return id(timeout_close).state;'
+      - light.turn_on: gate_1
+      - delay: 5s
+      - switch.turn_off: motor12
+      - switch.turn_off: rotate      
+      - globals.set:
+          id: gate_global
+          value: 'false'
+    stop_action:
+      - light.turn_off: gate_1
+      - light.turn_off: gate_2
+      - switch.turn_off: motor12
+      - switch.turn_off: rotate
+    optimistic: true
+
+#-------------------------------------------
+# SWITCH
+#-------------------------------------------
+switch:
+  - platform: gpio
+    pin: 3
+    id: rotate
+    name: Gate rotate
+    icon: mdi:gate-open
+
+
+  - platform: gpio
+    pin: 2
+    id: motor12
+    name: Gate open/close
+    icon: mdi:gate
+
+  - platform: template
+    name: "Авто закрытие"
+    id: close_auto
+    icon: mdi:refresh-auto
+    optimistic: True
+    entity_category: config
+
+  - platform: template
+    name: "Автомат Кв. 1 "
+    id: auto_kv1
+    icon: mdi:car-key
+    optimistic: True
+    entity_category: config
+    
+#-------------------------------------------
+# BINARY SENSOR
+#-------------------------------------------
+binary_sensor:
+  - platform: ble_presence
+    mac_address: 01:00:00:00:00:00
+    name: "Presence car kv1"
+    icon: mdi:car-connected
+    on_press:
+      - if:
+          condition:
+            switch.is_on: auto_kv1
+          then:
+            - cover.open: yar_gate
+    on_release:
+      - if:
+          condition:
+            switch.is_on: auto_kv1
+          then:
+            - cover.close: yar_gate
+
+  - platform: gpio
+    pin:
+      number: GPIO12
+      inverted: true
+    name: "open/close"
+    icon: mdi:gate-open
+    on_press:
+      then:
+        - cover.toggle: yar_gate
+     #   - cover.open: yar_gate
+  - platform: gpio
+    pin:
+      number: GPIO13
+      inverted: true
+    icon: mdi:gate
+    name: "close"
+    on_press:
+      then:
+        - cover.close: yar_gate
+  - platform: gpio
+    pin:
+      number: GPIO16
+      inverted: true
+    name: "open 1/2"
+    icon: mdi:gate-arrow-right
+    on_press:
+      then:
+        - globals.set:
+            id: gate_1_2
+            value: 'false'
+        - cover.open: yar_gate
+  - platform: gpio
+    pin:
+      number: GPIO14
+      inverted: true
+    name: "Gate alert"
+    icon: mdi:gate-alert
+    on_press:
+      then:
+        - cover.stop: yar_gate
+        - cover.open: yar_gate
+
+  - platform: gpio
+    pin:
+      number: GPIO44
+    name: "current 1"
+    icon: mdi:current-dc
+    on_press:
+      then:
+        - light.turn_off: gate_1
+  - platform: gpio
+    pin:
+      number: GPIO18
+    name: "current 2"
+    icon: mdi:current-dc
+    on_press:
+      then:
+        - light.turn_off: gate_2
+
+  - platform: remote_receiver
+    name: "RF close"
+    icon: mdi:gate
+    rc_switch_raw:
+      protocol:  1 #tweak depending on the protocol you want to receiver
+      code: "xxxxxxxxxxxxxxxxxxxxxxxx" #x=wildcard, adjust length
+    on_press:
+      then:
+        - cover.close: yar_gate
+  - platform: remote_receiver
+    name: "RF open/close"
+    icon: mdi:gate-open
+    rc_switch_raw:
+      protocol:  1 #tweak depending on the protocol you want to receiver
+      code: "xxxxxxxxxxxxxxxxxxxxxxxx" #x=wildcard, adjust length
+    on_press:
+      then:
+        - cover.toggle: yar_gate
+  - platform: remote_receiver
+    name: "RF open 1/2"
+    icon: mdi:gate-arrow-right
+    rc_switch_raw:
+      protocol:  1 #tweak depending on the protocol you want to receiver
+      code: "xxxxxxxxxxxxxxxxxxxxxxxx" #x=wildcard, adjust length
+    on_press:
+      then:
+        - globals.set:
+            id: gate_1_2
+            value: 'false'
+        - cover.toggle: yar_gate
+  - platform: remote_receiver
+    name: "RF open wicket"
+    icon: mdi:door-open
+    rc_switch_raw:
+      protocol:  1 #tweak depending on the protocol you want to receiver
+      code: "xxxxxxxxxxxxxxxxxxxxxxxx" #x=wildcard, adjust length
+    on_press:
+      then:
+        - lock.unlock: wicket
+
+
+#-------------------------------------------
+# REMOTE RECEIVER
+#-------------------------------------------
+remote_receiver:
+  pin: GPIO9
+  dump: all
+ # dump:
+ #   - rc_switch
+  # Settings to optimize recognition of RF devices
+  tolerance: 50%
+  filter: 250us
+  idle: 4ms
+
+#-------------------------------------------
+# LOCK
+#-------------------------------------------
+lock:
+  - platform: output
+    name: "Калитка"
+    icon: mdi:door-open
+    output: 'lock_out'
+    id: wicket
+    on_lock:
+      - logger.log: "Door Locked!"
+    on_unlock:
+      - logger.log: "Door Unlocked!"
+      - delay: 5s
+      - lock.lock: wicket
+      - logger.log: "Door Locked!"
+      
+#-------------------------------------------
+# LIGHT
+#-------------------------------------------
+light:
+  - platform: binary
+    name: "gate Lamp"
+    id: gate_lamp
+    output: light_gate
+    icon: mdi:alarm-light-outline
+
+  - platform: esp32_rmt_led_strip
+    rgb_order: RGB
+    pin: GPIO38
+    num_leds: 1
+    chipset: ws2812
+    name: "My Light"
+    icon: mdi:led-strip-variant
+
+  - platform: binary
+    name: "gate 1"
+    id: gate_1
+    output: MOSFET1
+    icon: mdi:boom-gate-up-outline
+
+  - platform: binary  
+    name: "gate 2"
+    id: gate_2
+    output: MOSFET2
+    icon: mdi:boom-gate-up-outline
+    
+#-------------------------------------------
+# STATUS LED
+#-------------------------------------------
+status_led:
+  pin: 10
+
+#-------------------------------------------
+# OUTPUT
+#-------------------------------------------
+output:
+  - platform: gpio
+    pin: GPIO5
+    id: 'light_gate'
+
+  - platform: gpio
+    pin:
+      number: GPIO1
+      inverted: True
+    id: 'lock_out'
+
+ # - platform: esp32_dac
+  - platform: gpio
+    pin:
+      number: GPIO7
+    id: MOSFET2
+
+  # - platform: esp32_dac
+  - platform: gpio
+    pin:
+      number: GPIO8
+      #inverted: true
+    id: MOSFET1
+#-------------------------------------------
+# Number
+#-------------------------------------------
+number:
+  - platform: template
+    name:  timeout close
+    optimistic: true
+    id: timeout_close
+    unit_of_measurement: "s"
+    initial_value: 2
+    restore_value: true
+    min_value: 0
+    max_value: 5
+    step: 1
+    mode: box
+    entity_category: config
+    icon: mdi:timer-cog-outline   
+
+  - platform: template
+    name:  timeout open
+    optimistic: true
+    id: timeout_open
+    unit_of_measurement: "s"
+    initial_value: 2
+    restore_value: true
+    min_value: 0
+    max_value: 5
+    step: 1
+    mode: box
+    entity_category: config
+    icon: mdi:timer-cog-outline   
+
+  - platform: template
+    name:  timeout auto close
+    optimistic: true
+    id: timeout_auto_close
+    unit_of_measurement: "s"
+    initial_value: 30
+    restore_value: true
+    min_value: 10
+    max_value: 120
+    step: 10
+    mode: box
+    entity_category: config
+    icon: mdi:timer-cog-outline   
