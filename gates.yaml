@@ -18,8 +18,8 @@
 # 1 обвязка      	          # 28 обвязка 
 # 2 VCC   		              # 27 кварц
 # 3       		              # 26 кварц
-# 4 GND   		              # 25 датчик тока m1?
-# 5       		              # 24 датчик тока m2?
+# 4 GND   		              # 25 датчик тока m1
+# 5       		              # 24 датчик тока m2
 # 6 NL2003 7 lock q10 rel   # 23 n/a
 # 7 NL2003 6	moto2 q10 rel # 22 button 1/2 rf433 rf433 v3
 # 8 NL2003 5	rota q10 rel  # 21 sensor
@@ -276,17 +276,25 @@ binary_sensor:
       number: GPIO44
     name: "current 1"
     icon: mdi:current-dc
-    on_press:
+    on_release:
       then:
-        - light.turn_off: gate_1
+        - if:
+            condition:
+              light.is_on: gate_1
+            then:
+              - light.turn_off: gate_1
   - platform: gpio
     pin:
       number: GPIO18
     name: "current 2"
     icon: mdi:current-dc
-    on_press:
+    on_release:
       then:
-        - light.turn_off: gate_2
+        - if:
+            condition:
+              light.is_on: gate_2
+            then:
+              - light.turn_off: gate_2
 
   - platform: remote_receiver
     name: "RF close"
