@@ -336,12 +336,11 @@ binary_sensor:
       then:
         - lock.unlock: wicket
 
-
 #-------------------------------------------
 # REMOTE RECEIVER
 #-------------------------------------------
 remote_receiver:
-  pin: GPIO9
+  pin: GPIO11
   dump: all
  # dump:
  #   - rc_switch
