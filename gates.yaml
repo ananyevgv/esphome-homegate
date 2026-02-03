@@ -10,8 +10,8 @@ esp32:
     
 esphome:
   on_boot:
-    - cover.close: wicket
- #   - lock.lock: wicket
+ #   - cover.close: wicket
+    - lock.lock: wicket
 
 #-------------------------------------------
 # PSRAM
@@ -33,7 +33,26 @@ packages:
 # BLE
 #-------------------------------------------
 esp32_ble_tracker:
-
+  on_ble_advertise:
+    - mac_address:
+        - !secret mac_kv1
+      then:
+        - lambda: |-
+            ESP_LOGD("ble_adv", "New BLE device");
+            ESP_LOGD("ble_adv", "  address: %s", x.address_str().c_str());
+            ESP_LOGD("ble_adv", "  name: %s", x.get_name().c_str());
+            ESP_LOGD("ble_adv", "  Advertised service UUIDs:");
+            for (auto uuid : x.get_service_uuids()) {
+                ESP_LOGD("ble_adv", "    - %s", uuid.to_string().c_str());
+            }
+            ESP_LOGD("ble_adv", "  Advertised service data:");
+            for (auto data : x.get_service_datas()) {
+                ESP_LOGD("ble_adv", "    - %s: (length %i)", data.uuid.to_string().c_str(), data.data.size());
+            }
+            ESP_LOGD("ble_adv", "  Advertised manufacturer data:");
+            for (auto data : x.get_manufacturer_datas()) {
+                ESP_LOGD("ble_adv", "    - %s: (length %i)", data.uuid.to_string().c_str(), data.data.size());
+            }
 bluetooth_proxy:
   active: true
 
@@ -110,34 +129,36 @@ cover:
       - switch.turn_off: rotate
     optimistic: true
 
-  - platform: template
-    name: "Калитка"
-    id: wicket
-    device_class: door
-    assumed_state: true
-    open_action:
-      - output.turn_on:  lock_out
-      - delay: 5s
-      - cover.close: wicket
-    close_action:
-    - output.turn_off: lock_out
-
+#  - platform: template
+#    name: "Калитка"
+#    id: wicket
+#    device_class: door
+#    icon: mdi:door-open
+#    assumed_state: true
+#    open_action:
+#      - output.turn_on:  lock_out
+#      - delay: 5s
+#      - cover.close: wicket
+#    close_action:
+#      - output.turn_off: lock_out
+#    stop_action:
+#      - output.turn_off: lock_out
 #-------------------------------------------
 # LOCK
 #-------------------------------------------
-#lock:
-#  - platform: output
-#    name: "Калитка"
-#    icon: mdi:door-open
-#    output: 'lock_out'
-#    id: wicket
-#    on_lock:
-#      - logger.log: "Door Locked!"
-#    on_unlock:
-#      - logger.log: "Door Unlocked!"
-#      - delay: 5s
-#      - lock.lock: wicket
-#      - logger.log: "Door Locked!"
+lock:
+  - platform: output
+    name: "Калитка"
+    icon: mdi:door-open
+    output: 'lock_out'
+    id: wicket
+    on_lock:
+      - logger.log: "Door Locked!"
+    on_unlock:
+      - logger.log: "Door Unlocked!"
+      - delay: 5s
+      - lock.lock: wicket
+      - logger.log: "Door Locked!"
 
 #-------------------------------------------
 # SWITCH
@@ -320,8 +341,8 @@ binary_sensor:
       code: !secret rf_code_wicket
     on_press:
       then:
-        - cover.open: wicket
-    #    - lock.unlock: wicket
+        #- cover.open: wicket
+        - lock.unlock: wicket
 
 #-------------------------------------------
 # REMOTE RECEIVER
